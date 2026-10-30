@@ -49,9 +49,10 @@ module axi_dw_upsizer #(
   /*****************
    *  DEFINITIONS  *
    *****************/
-  import axi_pkg::aligned_addr;
-  import axi_pkg::beat_addr   ;
-  import axi_pkg::modifiable  ;
+  import axi_pkg::aligned_addr  ;
+  import axi_pkg::beat_addr     ;
+  import axi_pkg::largest_addr_t;
+  import axi_pkg::modifiable    ;
 
   import cc_pkg::idx_width;
 
@@ -389,10 +390,10 @@ module axi_dw_upsizer #(
                       // Evaluate output burst length
                       automatic addr_t start_addr;
                       automatic addr_t end_addr;
-                      start_addr = aligned_addr(r_req_d.ar.addr, AxiMstPortMaxSize);
-                      end_addr   = aligned_addr(beat_addr(r_req_d.ar.addr,
+                      start_addr = aligned_addr(largest_addr_t'(r_req_d.ar.addr), AxiMstPortMaxSize);
+                      end_addr   = aligned_addr(beat_addr(largest_addr_t'(r_req_d.ar.addr),
                           r_req_d.orig_ar_size, r_req_d.burst_len, r_req_d.ar.burst,
-                          r_req_d.burst_len), AxiMstPortMaxSize);
+                          16'(r_req_d.burst_len)), AxiMstPortMaxSize);
                       r_req_d.ar.len  = (end_addr - start_addr) >> AxiMstPortMaxSize;
                       r_req_d.ar.size = AxiMstPortMaxSize                           ;
                       r_state_d       = R_INCR_UPSIZE                               ;
@@ -451,10 +452,10 @@ module axi_dw_upsizer #(
                   // Evaluate output burst length
                   automatic addr_t start_addr;
                   automatic addr_t end_addr;
-                  start_addr = aligned_addr(r_req_d.ar.addr, AxiMstPortMaxSize);
-                  end_addr   = aligned_addr(beat_addr(r_req_d.ar.addr,
+                  start_addr = aligned_addr(largest_addr_t'(r_req_d.ar.addr), AxiMstPortMaxSize);
+                  end_addr   = aligned_addr(beat_addr(largest_addr_t'(r_req_d.ar.addr),
                       r_req_d.orig_ar_size, r_req_d.burst_len, r_req_d.ar.burst,
-                      r_req_d.burst_len), AxiMstPortMaxSize);
+                      16'(r_req_d.burst_len)), AxiMstPortMaxSize);
                   r_req_d.ar.len  = (end_addr - start_addr) >> AxiMstPortMaxSize;
                   r_req_d.ar.size = AxiMstPortMaxSize                           ;
                   r_state_d       = R_INCR_UPSIZE                               ;
@@ -510,7 +511,8 @@ module axi_dw_upsizer #(
 
                 unique case (r_req_q.ar.burst)
                   axi_pkg::BURST_INCR: begin
-                    r_req_d.ar.addr = aligned_addr(r_req_q.ar.addr, r_req_q.orig_ar_size) + (1 << r_req_q.orig_ar_size);
+                    r_req_d.ar.addr = aligned_addr(largest_addr_t'(r_req_q.ar.addr), r_req_q.orig_ar_size) +
+                                      (1 << r_req_q.orig_ar_size);
                   end
                   axi_pkg::BURST_FIXED: begin
                     r_req_d.ar.addr = r_req_q.ar.addr;
@@ -523,7 +525,9 @@ module axi_dw_upsizer #(
                     mst_r_ready_tran[t] = 1'b1;
 
                   R_INCR_UPSIZE:
-                    if (r_req_q.burst_len == 0 || (aligned_addr(r_req_d.ar.addr, AxiMstPortMaxSize) != aligned_addr(r_req_q.ar.addr, AxiMstPortMaxSize)))
+                    if (r_req_q.burst_len == 0 ||
+                        (aligned_addr(largest_addr_t'(r_req_d.ar.addr), AxiMstPortMaxSize) !=
+                         aligned_addr(largest_addr_t'(r_req_q.ar.addr), AxiMstPortMaxSize)))
                       mst_r_ready_tran[t] = 1'b1;
 
                   default: ;
@@ -635,7 +639,8 @@ module axi_dw_upsizer #(
 
             unique case (w_req_q.aw.burst)
               axi_pkg::BURST_INCR: begin
-                w_req_d.aw.addr = aligned_addr(w_req_q.aw.addr, w_req_q.orig_aw_size) + (1 << w_req_q.orig_aw_size);
+                w_req_d.aw.addr = aligned_addr(largest_addr_t'(w_req_q.aw.addr), w_req_q.orig_aw_size) +
+                                  (1 << w_req_q.orig_aw_size);
               end
               axi_pkg::BURST_FIXED: begin
                 w_req_d.aw.addr = w_req_q.aw.addr;
@@ -650,7 +655,9 @@ module axi_dw_upsizer #(
 
               W_INCR_UPSIZE:
                 // Forward when the burst is finished, or after filling up a word
-                if (w_req_q.burst_len == 0 || (aligned_addr(w_req_d.aw.addr, AxiMstPortMaxSize) != aligned_addr(w_req_q.aw.addr, AxiMstPortMaxSize)))
+                if (w_req_q.burst_len == 0 ||
+                    (aligned_addr(largest_addr_t'(w_req_d.aw.addr), AxiMstPortMaxSize) !=
+                     aligned_addr(largest_addr_t'(w_req_q.aw.addr), AxiMstPortMaxSize)))
                   w_req_d.w_valid = 1'b1;
               default: ;
             endcase
@@ -703,10 +710,10 @@ module axi_dw_upsizer #(
                 // Evaluate output burst length
                 automatic addr_t start_addr;
                 automatic addr_t end_addr;
-                start_addr = aligned_addr(slv_req_i.aw.addr, AxiMstPortMaxSize);
-                end_addr   = aligned_addr(beat_addr(slv_req_i.aw.addr,
-                    slv_req_i.aw.size, slv_req_i.aw.len, slv_req_i.aw.burst, slv_req_i.aw.len),
-                    AxiMstPortMaxSize);
+                start_addr = aligned_addr(largest_addr_t'(slv_req_i.aw.addr), AxiMstPortMaxSize);
+                end_addr   = aligned_addr(beat_addr(largest_addr_t'(slv_req_i.aw.addr),
+                    slv_req_i.aw.size, slv_req_i.aw.len, slv_req_i.aw.burst,
+                    16'(slv_req_i.aw.len)), AxiMstPortMaxSize);
 
                 w_req_d.aw.len  = (end_addr - start_addr) >> AxiMstPortMaxSize;
                 w_req_d.aw.size = AxiMstPortMaxSize                           ;
